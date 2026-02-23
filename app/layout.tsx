@@ -1,15 +1,7 @@
 import type { Metadata } from "next";
-import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-
-const noto = Noto_Sans_KR({
-  subsets: ["latin"],
-  weight: ["400", "500", "700", "900"],
-  variable: "--font-noto",
-  display: "swap",
-});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bimong-samong.com";
 const siteName = "비몽사몽";
@@ -52,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={noto.variable}>
+    <html lang="ko">
       <body className="min-h-screen flex flex-col font-sans bg-slate-50">
         <Header />
         <main className="flex-1">{children}</main>
