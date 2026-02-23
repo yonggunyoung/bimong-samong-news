@@ -1,5 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Category } from "@/types";
 
@@ -99,37 +98,7 @@ imagePrompts 작성 규칙:
 프롬프트 구조 (이 순서로 작성):
 [장면 묘사, 구체적 디테일, 분위기/감정] + "35mm film grain, shot on Canon EOS R5 with 85mm f/1.4 lens, natural available light only, documentary style editorial photography, imperfect authentic details, no AI artifacts, no synthetic look"`;
 
-
-function getAdminSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase 환경변수가 설정되지 않았습니다.");
-  return createClient(url, key);
-}
-
-async function uploadImageToSupabase(
-  imageData: string,
-  fileName: string
-): Promise<string> {
-  const supabase = getAdminSupabase();
-  const buffer = Buffer.from(imageData, "base64");
-
-  const { error } = await supabase.storage
-    .from("post-images")
-    .upload(fileName, buffer, {
-      contentType: "image/png",
-      upsert: true,
-    });
-
-  if (error) throw new Error(`이미지 업로드 실패: ${error.message}`);
-
-  const { data } = supabase.storage.from("post-images").getPublicUrl(fileName);
-  return data.publicUrl;
-}
-
-// Vercel 서버리스 함수 타임아웃 60초로 연장
-export const maxDuration = 60;
-
+// 텍스트만 생성 (이미지 프롬프트 포함해서 반환)
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "여기에_API_키를_입력하세요") {
@@ -159,7 +128,6 @@ export async function POST(req: NextRequest) {
   try {
     const ai = new GoogleGenAI({ apiKey });
 
-    // 1단계: Gemini 3 Flash로 기사 텍스트 생성
     const textResult = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `${ARTICLE_PROMPT}\n\n카테고리: ${category}\n주제: ${topic}\n\n위 주제로 기사를 작성해주세요.`,
@@ -171,7 +139,6 @@ export async function POST(req: NextRequest) {
 
     const rawText = textResult.text ?? "";
 
-    // JSON 파싱
     const jsonMatch = rawText.match(/\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}/);
     if (!jsonMatch) {
       return NextResponse.json(
@@ -188,66 +155,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const imagePrompts: string[] = parsed.imagePrompts ?? [];
-    // 볼드체(**텍스트**) 후처리 제거 — 마크다운 헤딩(##)은 보존
-    let articleContent: string = parsed.content.replace(
-      /\*\*([^*]+)\*\*/g,
-      "$1"
-    );
-    const imageUrls: string[] = [];
-    const timestamp = Date.now();
-
-    // 2단계: 이미지 병렬 생성 (gemini-2.5-flash-image)
-    const imageResults = await Promise.allSettled(
-      imagePrompts.slice(0, 3).map(async (prompt, i) => {
-        const imgResult = await ai.models.generateContent({
-          model: "gemini-2.5-flash-image",
-          contents: prompt,
-          config: {
-            responseModalities: ["TEXT", "IMAGE"],
-          },
-        });
-
-        const parts = imgResult.candidates?.[0]?.content?.parts ?? [];
-        for (const part of parts) {
-          if (part.inlineData?.data) {
-            const fileName = `ai/${timestamp}_${i + 1}.png`;
-            return uploadImageToSupabase(part.inlineData.data, fileName);
-          }
-        }
-        return null;
-      })
-    );
-
-    for (const result of imageResults) {
-      if (result.status === "fulfilled" && result.value) {
-        imageUrls.push(result.value);
-      } else if (result.status === "rejected") {
-        console.error("이미지 생성 실패:", result.reason);
-      }
-    }
-
-    // 3단계: 플레이스홀더를 실제 이미지 마크다운으로 치환
-    for (let i = 0; i < 3; i++) {
-      const placeholder = `{{IMAGE_${i + 1}}}`;
-      if (imageUrls[i]) {
-        articleContent = articleContent.replace(
-          placeholder,
-          `![기사 이미지 ${i + 1}](${imageUrls[i]})`
-        );
-      } else {
-        articleContent = articleContent.replace(placeholder, "");
-      }
-    }
-
-    // 첫 번째 이미지를 썸네일로 사용
-    const thumbnail = imageUrls[0] ?? null;
+    // 볼드체 후처리 제거
+    const content = parsed.content.replace(/\*\*([^*]+)\*\*/g, "$1");
 
     return NextResponse.json({
       title: parsed.title,
-      content: articleContent.trim(),
-      thumbnail,
-      imageCount: imageUrls.length,
+      content,
+      imagePrompts: parsed.imagePrompts ?? [],
     });
   } catch (err) {
     const message =

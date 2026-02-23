@@ -46,27 +46,73 @@ export default function AdminWriteForm({ initialData }: Props) {
     setIsGenerating(true);
     setFeedback(null);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90000);
-      const res = await fetch("/api/ai/generate", {
+      // 1단계: 텍스트 생성 (빠름, ~5초)
+      setFeedback({ type: "success", message: "기사를 작성하고 있습니다..." });
+      const textRes = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: aiTopic.trim(), category }),
-        signal: controller.signal,
       });
-      clearTimeout(timeout);
-      const json = await res.json();
-      if (!res.ok) {
-        setFeedback({ type: "error", message: json.error ?? "AI 생성에 실패했습니다." });
+      const textJson = await textRes.json();
+      if (!textRes.ok) {
+        setFeedback({ type: "error", message: textJson.error ?? "AI 생성에 실패했습니다." });
         return;
       }
-      setTitle(json.title);
-      setContent(json.content);
-      if (json.thumbnail) setThumbnail(json.thumbnail);
+
+      // 텍스트 즉시 표시
+      setTitle(textJson.title);
+      setContent(textJson.content);
       setShowAiModal(false);
       setAiTopic("");
-      const imgMsg = json.imageCount ? ` (이미지 ${json.imageCount}장 포함)` : "";
-      setFeedback({ type: "success", message: `AI가 기사를 작성했습니다${imgMsg}. 내용을 검토 후 발행하세요.` });
+
+      const prompts: string[] = textJson.imagePrompts ?? [];
+      if (prompts.length === 0) {
+        setFeedback({ type: "success", message: "AI가 기사를 작성했습니다. 내용을 검토 후 발행하세요." });
+        return;
+      }
+
+      // 2단계: 이미지 병렬 생성 (각각 개별 요청)
+      setFeedback({ type: "success", message: "기사 완성! 이미지를 생성하고 있습니다... (0/" + prompts.length + ")" });
+      setIsGenerating(false); // 모달은 닫히고 에디터 사용 가능
+
+      let doneCount = 0;
+      let currentContent = textJson.content as string;
+      let thumbSet = false;
+
+      await Promise.allSettled(
+        prompts.slice(0, 3).map(async (prompt: string, i: number) => {
+          try {
+            const imgRes = await fetch("/api/ai/image", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prompt, index: i }),
+            });
+            const imgJson = await imgRes.json();
+            if (imgRes.ok && imgJson.url) {
+              currentContent = currentContent.replace(
+                `{{IMAGE_${i + 1}}}`,
+                `![기사 이미지 ${i + 1}](${imgJson.url})`
+              );
+              setContent(currentContent);
+              if (!thumbSet) {
+                setThumbnail(imgJson.url);
+                thumbSet = true;
+              }
+            } else {
+              currentContent = currentContent.replace(`{{IMAGE_${i + 1}}}`, "");
+              setContent(currentContent);
+            }
+          } catch {
+            currentContent = currentContent.replace(`{{IMAGE_${i + 1}}}`, "");
+            setContent(currentContent);
+          }
+          doneCount++;
+          setFeedback({ type: "success", message: `이미지 생성 중... (${doneCount}/${prompts.length})` });
+        })
+      );
+
+      setFeedback({ type: "success", message: `AI가 기사를 작성했습니다 (이미지 ${doneCount}장). 내용을 검토 후 발행하세요.` });
+      return;
     } catch (err) {
       const msg = err instanceof DOMException && err.name === "AbortError"
         ? "생성 시간이 초과되었습니다. 다시 시도해주세요."
