@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 function MoonLogo() {
   return (
-    <Link href="/" className="flex items-center gap-2.5 group">
+    <Link href="/" className="flex items-center gap-2.5 group flex-shrink-0">
       <svg
         className="w-6 h-6 text-violet-400 group-hover:text-violet-300 transition-colors"
         viewBox="0 0 24 24"
@@ -27,6 +27,7 @@ export default function Header() {
   const router = useRouter();
   const [role, setRole] = useState<"admin" | "member" | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -60,14 +61,23 @@ export default function Header() {
     router.push("/");
   };
 
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    router.push(q ? `/?search=${encodeURIComponent(q)}` : "/");
+  };
+
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/write")) return null;
 
   return (
     <header className="bg-slate-950 sticky top-0 z-50 border-b border-slate-800">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
         <MoonLogo />
 
-        {/* 카테고리 네비 (md 이상) */}
+        {/* 스페이서 */}
+        <div className="flex-1" />
+
+        {/* 카테고리 네비 (md 이상, 우측 정렬) */}
         <nav className="hidden md:flex items-center gap-1">
           {[
             { label: "꿈해몽", href: "/category/dream" },
@@ -87,6 +97,28 @@ export default function Header() {
             </Link>
           ))}
         </nav>
+
+        {/* 작은 검색창 */}
+        <form onSubmit={handleSearch} className="hidden md:flex items-center">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="검색"
+              className="w-28 focus:w-40 pl-3 pr-8 py-1.5 text-xs bg-slate-800 border border-slate-700 rounded-full text-slate-300 placeholder:text-slate-500 focus:outline-none focus:border-violet-500 transition-all duration-200"
+            />
+            <button
+              type="submit"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        </form>
 
         {/* 우측 액션 */}
         <div className="flex items-center gap-2">

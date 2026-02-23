@@ -8,6 +8,8 @@ import { getPostById, getRelatedPosts, formatDate, readingTime } from "@/lib/pos
 import CategoryBadge from "@/components/CategoryBadge";
 import ArticleCard from "@/components/ArticleCard";
 import ShareButtons from "@/components/ShareButtons";
+import AdminPostActions from "@/components/AdminPostActions";
+import { createClient } from "@/lib/supabase-server";
 import { CATEGORY_TO_SLUG } from "@/types";
 
 interface Props {
@@ -52,6 +54,14 @@ export default async function PostPage({ params }: Props) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const postUrl = `${siteUrl}/posts/${post.id}`;
 
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    isAdmin = data?.role === "admin";
+  }
+
   return (
     <article className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
       {/* 뒤로가기 */}
@@ -67,7 +77,10 @@ export default async function PostPage({ params }: Props) {
 
       {/* 헤더 */}
       <header className="mb-10">
-        <CategoryBadge category={post.category} asLink />
+        <div className="flex items-center justify-between gap-4">
+          <CategoryBadge category={post.category} asLink />
+          {isAdmin && <AdminPostActions postId={post.id} />}
+        </div>
         <h1 className="mt-4 text-[1.875rem] sm:text-[2.25rem] font-black text-gray-900 leading-[1.25] tracking-tight">
           {post.title}
         </h1>

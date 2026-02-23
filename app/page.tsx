@@ -100,16 +100,7 @@ export default async function HomePage({ searchParams }: Props) {
   const hasAnyPosts = !!featured || categorySections.some((s) => s.posts.length > 0);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-      {/* 헤더 */}
-      <div className="pt-10 pb-8 text-center">
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight">비몽사몽</h1>
-        <p className="mt-1.5 text-sm text-gray-400">꿈해몽 · 생활정보 · 운세/심리</p>
-        <div className="mt-5">
-          <SearchBar />
-        </div>
-      </div>
-
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-8">
       {!hasAnyPosts ? (
         <EmptyState />
       ) : (

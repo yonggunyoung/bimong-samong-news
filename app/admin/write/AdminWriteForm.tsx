@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CATEGORIES } from "@/types";
-import type { Category } from "@/types";
+import type { Category, Post } from "@/types";
 
 type Tab = "write" | "preview";
 
@@ -19,12 +19,18 @@ const PLACEHOLDER = `## 소제목
 > 인용문은 이렇게 작성합니다.
 `;
 
-export default function AdminWriteForm() {
+interface Props {
+  initialData?: Pick<Post, "id" | "title" | "content" | "category" | "thumbnail">;
+}
+
+export default function AdminWriteForm({ initialData }: Props) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<Category>("꿈해몽");
-  const [content, setContent] = useState("");
-  const [thumbnail, setThumbnail] = useState("");
+  const isEdit = !!initialData;
+
+  const [title, setTitle] = useState(initialData?.title ?? "");
+  const [category, setCategory] = useState<Category>(initialData?.category ?? "꿈해몽");
+  const [content, setContent] = useState(initialData?.content ?? "");
+  const [thumbnail, setThumbnail] = useState(initialData?.thumbnail ?? "");
   const [tab, setTab] = useState<Tab>("write");
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -40,22 +46,25 @@ export default function AdminWriteForm() {
 
       setIsLoading(true);
       try {
-        const res = await fetch("/api/posts", {
-          method: "POST",
+        const url = isEdit ? `/api/posts/${initialData.id}` : "/api/posts";
+        const method = isEdit ? "PUT" : "POST";
+        const res = await fetch(url, {
+          method,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: title.trim(), content: content.trim(), category, thumbnail: thumbnail.trim() || null }),
         });
         const json = await res.json();
-        if (!res.ok) { setFeedback({ type: "error", message: json.error ?? "발행에 실패했습니다." }); return; }
-        setFeedback({ type: "success", message: "기사가 성공적으로 발행되었습니다!" });
-        setTimeout(() => router.push(`/posts/${json.post.id}`), 1200);
+        if (!res.ok) { setFeedback({ type: "error", message: json.error ?? "저장에 실패했습니다." }); return; }
+        setFeedback({ type: "success", message: isEdit ? "수정이 완료되었습니다!" : "기사가 성공적으로 발행되었습니다!" });
+        const postId = isEdit ? initialData.id : json.post.id;
+        setTimeout(() => router.push(`/posts/${postId}`), 1200);
       } catch {
         setFeedback({ type: "error", message: "네트워크 오류가 발생했습니다." });
       } finally {
         setIsLoading(false);
       }
     },
-    [title, content, category, thumbnail, router]
+    [title, content, category, thumbnail, router, isEdit, initialData]
   );
 
   return (
@@ -66,7 +75,9 @@ export default function AdminWriteForm() {
             <svg className="w-5 h-5 text-violet-400" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" />
             </svg>
-            <span className="text-sm font-bold text-white">비몽<span className="text-violet-400">사몽</span> — 글쓰기</span>
+            <span className="text-sm font-bold text-white">
+              비몽<span className="text-violet-400">사몽</span> — {isEdit ? "글 편집" : "글쓰기"}
+            </span>
           </div>
           <a href="/" className="text-xs text-slate-400 hover:text-white transition-colors">← 사이트 보기</a>
         </div>
@@ -153,13 +164,13 @@ export default function AdminWriteForm() {
           )}
 
           <div className="flex items-center justify-end gap-3 pb-4">
-            <button type="button" onClick={() => router.push("/")}
+            <button type="button" onClick={() => router.back()}
               className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
               취소
             </button>
             <button type="submit" disabled={isLoading}
               className="px-6 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-full hover:bg-violet-700 active:scale-95 transition-all disabled:opacity-50">
-              {isLoading ? "발행 중…" : "발행하기"}
+              {isLoading ? (isEdit ? "저장 중…" : "발행 중…") : (isEdit ? "저장하기" : "발행하기")}
             </button>
           </div>
         </form>
