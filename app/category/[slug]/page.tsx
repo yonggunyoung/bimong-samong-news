@@ -8,7 +8,7 @@ import {
   CATEGORY_COLORS,
 } from "@/types";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 interface Props {
   params: { slug: string };

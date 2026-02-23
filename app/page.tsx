@@ -5,7 +5,7 @@ import SearchBar from "@/components/SearchBar";
 import { CATEGORY_TO_SLUG } from "@/types";
 import type { Category, Post } from "@/types";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 interface Props {
   searchParams: { search?: string };
