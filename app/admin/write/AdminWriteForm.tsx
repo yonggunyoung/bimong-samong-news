@@ -46,11 +46,15 @@ export default function AdminWriteForm({ initialData }: Props) {
     setIsGenerating(true);
     setFeedback(null);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: aiTopic.trim(), category }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       const json = await res.json();
       if (!res.ok) {
         setFeedback({ type: "error", message: json.error ?? "AI 생성에 실패했습니다." });
@@ -63,8 +67,11 @@ export default function AdminWriteForm({ initialData }: Props) {
       setAiTopic("");
       const imgMsg = json.imageCount ? ` (이미지 ${json.imageCount}장 포함)` : "";
       setFeedback({ type: "success", message: `AI가 기사를 작성했습니다${imgMsg}. 내용을 검토 후 발행하세요.` });
-    } catch {
-      setFeedback({ type: "error", message: "네트워크 오류가 발생했습니다." });
+    } catch (err) {
+      const msg = err instanceof DOMException && err.name === "AbortError"
+        ? "생성 시간이 초과되었습니다. 다시 시도해주세요."
+        : "네트워크 오류가 발생했습니다.";
+      setFeedback({ type: "error", message: msg });
     } finally {
       setIsGenerating(false);
     }

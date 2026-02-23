@@ -127,6 +127,9 @@ async function uploadImageToSupabase(
   return data.publicUrl;
 }
 
+// Vercel 서버리스 함수 타임아웃 60초로 연장
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "여기에_API_키를_입력하세요") {
@@ -194,12 +197,12 @@ export async function POST(req: NextRequest) {
     const imageUrls: string[] = [];
     const timestamp = Date.now();
 
-    // 2단계: 이미지 생성 (gemini-2.5-flash-image)
-    for (let i = 0; i < Math.min(imagePrompts.length, 3); i++) {
-      try {
+    // 2단계: 이미지 병렬 생성 (gemini-2.5-flash-image)
+    const imageResults = await Promise.allSettled(
+      imagePrompts.slice(0, 3).map(async (prompt, i) => {
         const imgResult = await ai.models.generateContent({
           model: "gemini-2.5-flash-image",
-          contents: imagePrompts[i],
+          contents: prompt,
           config: {
             responseModalities: ["TEXT", "IMAGE"],
           },
@@ -209,17 +212,18 @@ export async function POST(req: NextRequest) {
         for (const part of parts) {
           if (part.inlineData?.data) {
             const fileName = `ai/${timestamp}_${i + 1}.png`;
-            const publicUrl = await uploadImageToSupabase(
-              part.inlineData.data,
-              fileName
-            );
-            imageUrls.push(publicUrl);
-            break;
+            return uploadImageToSupabase(part.inlineData.data, fileName);
           }
         }
-      } catch (imgErr) {
-        console.error(`이미지 ${i + 1} 생성 실패:`, imgErr);
-        // 이미지 실패해도 기사는 계속 진행
+        return null;
+      })
+    );
+
+    for (const result of imageResults) {
+      if (result.status === "fulfilled" && result.value) {
+        imageUrls.push(result.value);
+      } else if (result.status === "rejected") {
+        console.error("이미지 생성 실패:", result.reason);
       }
     }
 
