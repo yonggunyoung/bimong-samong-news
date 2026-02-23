@@ -1,9 +1,9 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import type { Post, Category } from "@/types";
 
 /** 최신 포스트 목록 조회 */
 export async function getPosts(limit = 12): Promise<Post[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("posts")
     .select("*")
     .order("created_at", { ascending: false })
@@ -21,7 +21,7 @@ export async function getPostsByCategory(
   category: Category,
   limit = 20
 ): Promise<Post[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("posts")
     .select("*")
     .eq("category", category)
@@ -37,7 +37,7 @@ export async function getPostsByCategory(
 
 /** 단일 포스트 조회 */
 export async function getPostById(id: string): Promise<Post | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("posts")
     .select("*")
     .eq("id", id)
@@ -52,7 +52,7 @@ export async function getPostById(id: string): Promise<Post | null> {
 
 /** 홈 히어로용 대표 포스트 조회 (최신 1건) */
 export async function getFeaturedPost(): Promise<Post | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("posts")
     .select("*")
     .order("created_at", { ascending: false })
@@ -81,7 +81,7 @@ export function readingTime(content: string): number {
 
 /** 제목/내용 검색 */
 export async function searchPosts(query: string, limit = 24): Promise<Post[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("posts")
     .select("*")
     .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
@@ -101,7 +101,7 @@ export async function getRelatedPosts(
   excludeId: string,
   limit = 3
 ): Promise<Post[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("posts")
     .select("*")
     .eq("category", category)
