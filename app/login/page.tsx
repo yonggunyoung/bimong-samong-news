@@ -28,7 +28,11 @@ export default function LoginPage() {
     if (mode === "login") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+        if (error.message === "Email not confirmed") {
+          setError("이메일 인증이 필요합니다. 받은 메일함에서 인증 링크를 클릭해주세요.");
+        } else {
+          setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
       } else {
         router.push("/");
         router.refresh();
@@ -128,9 +132,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-5 text-center text-xs text-slate-600">
-            최초 가입자는 자동으로 관리자 권한이 부여됩니다.
-          </p>
         </div>
 
         <div className="mt-6 text-center">

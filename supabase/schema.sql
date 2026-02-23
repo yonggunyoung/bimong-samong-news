@@ -3,8 +3,24 @@
 -- Supabase SQL Editor 에서 실행하세요.
 -- ============================================================
 
--- posts 테이블
-CREATE TABLE IF NOT EXISTS posts (
+-- ── 1. profiles 테이블 (반드시 posts 정책보다 먼저 생성) ──────────────
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id         UUID        REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  role       TEXT        NOT NULL DEFAULT 'member'
+               CHECK (role IN ('admin', 'member')),
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "profiles_public_read"
+  ON public.profiles FOR SELECT USING (true);
+
+CREATE POLICY "profiles_own_insert"
+  ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- ── 2. posts 테이블 ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.posts (
   id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   title       TEXT        NOT NULL,
   content     TEXT        NOT NULL,
@@ -14,49 +30,33 @@ CREATE TABLE IF NOT EXISTS posts (
   created_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_posts_category   ON posts (category);
-CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_category   ON public.posts (category);
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON public.posts (created_at DESC);
 
-ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "posts_public_read"
-  ON posts FOR SELECT USING (true);
+  ON public.posts FOR SELECT USING (true);
 
 CREATE POLICY "posts_admin_insert"
-  ON posts FOR INSERT
+  ON public.posts FOR INSERT
   WITH CHECK (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
 CREATE POLICY "posts_admin_update"
-  ON posts FOR UPDATE
+  ON public.posts FOR UPDATE
   USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
 CREATE POLICY "posts_admin_delete"
-  ON posts FOR DELETE
+  ON public.posts FOR DELETE
   USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
--- profiles 테이블 (회원 역할)
-CREATE TABLE IF NOT EXISTS profiles (
-  id         UUID        REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  role       TEXT        NOT NULL DEFAULT 'member'
-               CHECK (role IN ('admin', 'member')),
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "profiles_public_read"
-  ON profiles FOR SELECT USING (true);
-
-CREATE POLICY "profiles_own_insert"
-  ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
-
--- 신규 가입 트리거: 최초 가입자 = admin, 이후 = member
+-- ── 3. 신규 가입 트리거: 최초 가입자 = admin, 이후 = member ──────────
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
