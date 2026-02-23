@@ -37,7 +37,7 @@ export default function ArticleListItem({ post }: Props) {
         {/* 텍스트 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
-            <CategoryBadge category={post.category} asLink />
+            <CategoryBadge category={post.category} />
             <span className="text-xs text-gray-400">{formatDate(post.created_at)}</span>
           </div>
           <h2 className="text-base font-bold text-gray-900 leading-snug group-hover:text-violet-700 transition-colors line-clamp-2">

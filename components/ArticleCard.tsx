@@ -105,7 +105,7 @@ export default function ArticleCard({ post, featured = false }: Props) {
         {/* 내용 */}
         <div className="flex flex-col flex-1 p-5">
           <div className="flex items-center gap-2 mb-2">
-            <CategoryBadge category={post.category} asLink />
+            <CategoryBadge category={post.category} />
           </div>
           <h3 className="text-[0.9375rem] font-bold text-gray-900 leading-snug line-clamp-2 group-hover:text-violet-600 transition-colors flex-1">
             {post.title}

@@ -35,7 +35,40 @@ export default function AdminWriteForm({ initialData }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  const [aiTopic, setAiTopic] = useState("");
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const charCount = content.length;
+
+  const handleAiGenerate = useCallback(async () => {
+    if (!aiTopic.trim()) return;
+    setIsGenerating(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: aiTopic.trim(), category }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: "error", message: json.error ?? "AI 생성에 실패했습니다." });
+        return;
+      }
+      setTitle(json.title);
+      setContent(json.content);
+      if (json.thumbnail) setThumbnail(json.thumbnail);
+      setShowAiModal(false);
+      setAiTopic("");
+      const imgMsg = json.imageCount ? ` (이미지 ${json.imageCount}장 포함)` : "";
+      setFeedback({ type: "success", message: `AI가 기사를 작성했습니다${imgMsg}. 내용을 검토 후 발행하세요.` });
+    } catch {
+      setFeedback({ type: "error", message: "네트워크 오류가 발생했습니다." });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [aiTopic, category]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -79,7 +112,16 @@ export default function AdminWriteForm({ initialData }: Props) {
               비몽<span className="text-violet-400">사몽</span> — {isEdit ? "글 편집" : "글쓰기"}
             </span>
           </div>
-          <a href="/" className="text-xs text-slate-400 hover:text-white transition-colors">← 사이트 보기</a>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setShowAiModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-full transition-colors">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1l1 5h-3l-1-5h-2l-1 5H7l1-5H7a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3V6a4 4 0 0 1 4-4z"/>
+              </svg>
+              AI 작성
+            </button>
+            <a href="/" className="text-xs text-slate-400 hover:text-white transition-colors">← 사이트 보기</a>
+          </div>
         </div>
       </div>
 
@@ -175,6 +217,65 @@ export default function AdminWriteForm({ initialData }: Props) {
           </div>
         </form>
       </div>
+
+      {/* AI 작성 모달 */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-sm">AI</span>
+                AI 기사 작성
+              </h3>
+              <button type="button" onClick={() => setShowAiModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">카테고리</label>
+              <p className="text-sm font-medium text-violet-600">{category}</p>
+              <p className="text-xs text-gray-400 mt-0.5">위에서 선택한 카테고리가 적용됩니다</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">주제 / 키워드</label>
+              <input
+                type="text"
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                placeholder="예: 뱀 꿈의 의미, 아침 루틴 추천, 2026년 별자리 운세"
+                className="w-full text-sm text-gray-700 placeholder:text-gray-300 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 transition-colors"
+                onKeyDown={(e) => { if (e.key === "Enter") handleAiGenerate(); }}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setShowAiModal(false)}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+                취소
+              </button>
+              <button type="button" onClick={handleAiGenerate}
+                disabled={isGenerating || !aiTopic.trim()}
+                className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-full hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2">
+                {isGenerating ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    기사 + 이미지 생성 중…
+                  </>
+                ) : "기사 + 이미지 생성"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
