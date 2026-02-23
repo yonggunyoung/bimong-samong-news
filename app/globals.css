@@ -10,7 +10,7 @@
   }
 
   body {
-    @apply bg-white text-gray-900;
+    @apply bg-slate-50 text-gray-900;
   }
 
   /* 스크롤바 숨기기 (카테고리 nav 가로 스크롤) */

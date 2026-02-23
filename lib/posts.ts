@@ -72,3 +72,46 @@ export function formatDate(isoString: string): string {
     day: "numeric",
   });
 }
+
+/** 예상 읽기 시간 (분) — 한국어 기준 약 500자/분 */
+export function readingTime(content: string): number {
+  const chars = content.replace(/\s+/g, "").length;
+  return Math.max(1, Math.ceil(chars / 500));
+}
+
+/** 제목/내용 검색 */
+export async function searchPosts(query: string, limit = 24): Promise<Post[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("searchPosts error:", error.message);
+    return [];
+  }
+  return data as Post[];
+}
+
+/** 관련 글 (같은 카테고리, 현재 글 제외) */
+export async function getRelatedPosts(
+  category: Category,
+  excludeId: string,
+  limit = 3
+): Promise<Post[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("category", category)
+    .neq("id", excludeId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("getRelatedPosts error:", error.message);
+    return [];
+  }
+  return data as Post[];
+}
