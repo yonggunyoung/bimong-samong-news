@@ -46,7 +46,7 @@ export function buildAutoPublishPrompt(category: Category): BuildResult {
   const antiPatterns = pickAntiPatterns(4);
 
   const temperature = 0.7 + Math.random() * 0.25; // 0.7~0.95
-  const maxOutputTokens = 2048 + Math.floor(Math.random() * 2049); // 2048~4096
+  const maxOutputTokens = 4096; // 한국어는 토큰 소비가 커서 고정
 
   const systemPrompt = `${catPrompt.systemRole}
 
