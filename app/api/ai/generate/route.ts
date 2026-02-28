@@ -46,8 +46,9 @@ export async function POST(req: NextRequest) {
     });
 
     const rawText = textResult.text ?? "";
+    const cleanedText = rawText.replace(/```json\s*/g, "").replace(/```\s*/g, "");
 
-    const jsonMatch = rawText.match(/\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}/);
+    const jsonMatch = cleanedText.match(/\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}/);
     if (!jsonMatch) {
       return NextResponse.json(
         { error: "AI 응답을 파싱할 수 없습니다. 다시 시도해주세요." },

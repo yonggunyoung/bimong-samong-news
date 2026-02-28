@@ -97,10 +97,12 @@ export async function GET(req: NextRequest) {
     });
 
     const raw = result.text ?? "";
-    const match = raw.match(/\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}/);
+    // 마크다운 코드블록 안의 JSON도 처리
+    const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+    const match = cleaned.match(/\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}/);
     if (!match) {
       return NextResponse.json(
-        { error: "Failed to parse AI response" },
+        { error: "Failed to parse AI response", rawPreview: raw.slice(0, 300) },
         { status: 500 }
       );
     }
