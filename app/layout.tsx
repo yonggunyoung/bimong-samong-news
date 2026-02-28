@@ -30,6 +30,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: siteUrl,
+    types: { "application/rss+xml": `${siteUrl}/feed.xml` },
   },
   robots: {
     index: true,
@@ -46,6 +47,24 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen flex flex-col font-sans bg-slate-50">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: siteName,
+              url: siteUrl,
+              description: siteDescription,
+              inLanguage: "ko",
+              publisher: {
+                "@type": "Organization",
+                name: siteName,
+                url: siteUrl,
+              },
+            }),
+          }}
+        />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

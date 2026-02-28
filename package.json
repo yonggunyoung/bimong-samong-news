@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "auto-publish": "node --env-file=.env.local scripts/auto-publish.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",

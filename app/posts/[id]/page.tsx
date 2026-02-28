@@ -62,8 +62,31 @@ export default async function PostPage({ params }: Props) {
     isAdmin = data?.role === "admin";
   }
 
+  const description = post.content
+    .replace(/#{1,6}\s/g, "").replace(/\*\*/g, "").replace(/\*/g, "")
+    .replace(/`/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\n+/g, " ").trim().slice(0, 140);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description,
+    datePublished: post.created_at,
+    url: postUrl,
+    inLanguage: "ko",
+    author: { "@type": "Organization", name: "비몽사몽" },
+    publisher: { "@type": "Organization", name: "비몽사몽", url: siteUrl },
+    ...(post.thumbnail && { image: post.thumbnail }),
+    mainEntityOfPage: { "@type": "WebPage", "@id": postUrl },
+  };
+
   return (
     <article className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* 뒤로가기 */}
       <Link
         href={categorySlug ? `/category/${categorySlug}` : "/"}
